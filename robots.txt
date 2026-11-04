@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ee2506.github.io/djpfolio-Nicev/sitemap.xml
