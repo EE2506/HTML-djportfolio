@@ -39,30 +39,8 @@
   const playSlide = document.querySelector('[data-carousel-play]');
   const carouselPosition = document.querySelector('[data-carousel-position]');
   if (carouselTrack && carouselControls && previousSlide && nextSlide && playSlide && carouselPosition) {
-    const projects = Array.isArray(window.PORTFOLIO_PROJECTS) ? window.PORTFOLIO_PROJECTS : [];
-    const skillCount = carouselTrack.children.length;
-    projects.forEach((project, index) => {
-      const slide = document.createElement('li');
-      slide.className = 'carousel-slide';
-      const link = document.createElement('a');
-      link.href = project.sample ? '#work' : project.url;
-      const kind = document.createElement('span');
-      kind.className = 'slide-kind';
-      kind.textContent = `${project.sample ? 'Sample concept' : project.label} / ${String(skillCount + index + 1).padStart(2, '0')}`;
-      const title = document.createElement('strong');
-      title.textContent = project.title;
-      const detail = document.createElement('span');
-      detail.className = 'slide-detail';
-      detail.textContent = project.carouselSummary || project.summary;
-      const arrow = document.createElement('span');
-      arrow.className = 'slide-arrow';
-      arrow.setAttribute('aria-hidden', 'true');
-      arrow.textContent = '↗';
-      link.append(kind, title, detail, arrow);
-      slide.append(link);
-      carouselTrack.append(slide);
-    });
-    const slides = [...carouselTrack.children];
+    const skills = [...carouselTrack.children];
+    let slides = skills;
     const carouselRegion = carouselTrack.closest('.showcase-carousel');
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
     const hoverPreference = window.matchMedia('(hover: hover)');
@@ -86,6 +64,31 @@
     carouselTrack.prepend(...slides.map(cloneSlide));
     carouselTrack.append(...slides.map(cloneSlide));
     carouselControls.hidden = false;
+    document.addEventListener('portfolio:projects', ({ detail }) => {
+      pauseAutoAdvance();
+      const projectSlides = detail.map((project) => {
+        const slide = document.createElement('li');
+        slide.className = 'carousel-slide';
+        const link = document.createElement('a');
+        link.href = project.href;
+        const kind = document.createElement('span');
+        kind.className = 'slide-kind';
+        kind.textContent = project.category.name;
+        const title = document.createElement('strong');
+        title.textContent = project.title;
+        const description = document.createElement('span');
+        description.className = 'slide-detail';
+        description.textContent = project.description;
+        link.append(kind, title, description);
+        slide.append(link);
+        return slide;
+      });
+      slides = [...skills, ...projectSlides];
+      carouselTrack.replaceChildren(...slides.map(cloneSlide), ...slides, ...slides.map(cloneSlide));
+      step = 0;
+      measureCarousel();
+      startAutoAdvance();
+    });
     function currentIndex() {
       if (!step) return 0;
       const index = Math.round((carouselTrack.scrollLeft - cycleWidth) / step);
@@ -200,24 +203,6 @@
     startAutoAdvance();
   }
 
-  function drawProjectVisual(kind) {
-    const shapes = {
-      grid: '<svg viewBox="0 0 420 270" aria-hidden="true"><path class="visual-line" d="M42 58h336M42 135h336M42 212h336M124 31v210M210 31v210M296 31v210"/><rect x="58" y="74" width="135" height="45" rx="12"/><rect x="226" y="151" width="135" height="45" rx="12"/><circle cx="210" cy="135" r="27"/><path class="visual-stroke" d="M195 135h30M210 120v30"/></svg>',
-      bars: '<svg viewBox="0 0 420 270" aria-hidden="true"><path class="visual-line" d="M48 218h324M48 48v170"/><rect x="84" y="141" width="43" height="77" rx="8"/><rect x="155" y="97" width="43" height="121" rx="8"/><rect x="226" y="119" width="43" height="99" rx="8"/><rect x="297" y="70" width="43" height="148" rx="8"/><path class="visual-stroke" d="M76 82c41-30 57 23 95-5 33-25 42 7 71-17 22-18 41 13 93-29"/></svg>',
-      flow: '<svg viewBox="0 0 420 270" aria-hidden="true"><circle cx="83" cy="135" r="32"/><circle cx="211" cy="76" r="32"/><circle cx="211" cy="194" r="32"/><circle cx="338" cy="135" r="32"/><path class="visual-stroke" d="m113 121 67-31M113 149l67 31M242 90l67 31M242 180l67-31"/><path class="visual-line" d="M74 135h18M202 76h18M202 194h18M329 135h18"/></svg>',
-      wave: '<svg viewBox="0 0 420 270" aria-hidden="true"><path class="visual-stroke wide" d="M34 170c54-103 86 67 147-31 58-93 96 47 204-53"/><path class="visual-line" d="M34 203c54-103 86 67 147-31 58-93 96 47 204-53M34 137c54-103 86 67 147-31 58-93 96 47 204-53"/><circle cx="106" cy="82" r="18"/><circle cx="315" cy="197" r="12"/></svg>'
-    };
-    return shapes[kind] || shapes.grid;
-  }
-  function renderProjects(filter = 'all') {
-    const grid = document.querySelector('#project-grid');
-    if (!grid || !Array.isArray(window.PORTFOLIO_PROJECTS)) return;
-    const projects = filter === 'all' ? window.PORTFOLIO_PROJECTS : window.PORTFOLIO_PROJECTS.filter((project) => project.type === filter);
-    grid.innerHTML = projects.map((project, index) => `<article class="project-card project-${project.hue}" data-reveal style="--delay:${index * 70}ms"><a class="project-visual" href="${project.url}" aria-label="View ${project.sample ? 'sample concept' : 'project'}: ${project.title}">${drawProjectVisual(project.visual)}<span class="project-number">${String(index + 1).padStart(2, '0')}</span>${project.sample ? '<span class="sample-chip">Sample concept</span>' : ''}<span class="visual-arrow" aria-hidden="true">↗</span></a><div class="project-copy"><p class="project-type">${project.label}</p><h3><a href="${project.url}">${project.title}</a></h3><p>${project.summary}</p><div class="project-bottom"><ul class="tag-list">${project.tags.map((tag) => `<li>${tag}</li>`).join('')}</ul><a class="project-link" href="${project.url}">${project.sample ? 'View idea' : 'View project'} <span aria-hidden="true">↗</span></a></div></div></article>`).join('');
-    activateReveals(grid);
-  }
-  document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => { document.querySelectorAll('[data-filter]').forEach((item) => item.classList.toggle('is-active', item === button)); renderProjects(button.dataset.filter); }));
-
   let revealObserver;
   function activateReveals(scope = document) {
     const elements = [...scope.querySelectorAll('[data-reveal]:not(.is-visible)')];
@@ -225,14 +210,12 @@
     if (!revealObserver) revealObserver = new IntersectionObserver((entries) => entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add('is-visible'); revealObserver.unobserve(entry.target); } }), { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
     elements.forEach((element) => revealObserver.observe(element));
   }
-  renderProjects(); activateReveals(); requestAnimationFrame(() => document.body.classList.add('page-ready'));
+  activateReveals(); requestAnimationFrame(() => document.body.classList.add('page-ready'));
 
   const navLinks = [...document.querySelectorAll('.desktop-nav a')];
   const sections = [...document.querySelectorAll('main section[id]')];
   if ('IntersectionObserver' in window) { const navObserver = new IntersectionObserver((entries) => { const current = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]; if (!current) return; const currentId = current.target.id === 'work' ? 'projects' : current.target.id; navLinks.forEach((link) => link.toggleAttribute('aria-current', link.getAttribute('href') === `#${currentId}`)); }, { rootMargin: '-30% 0px -58% 0px', threshold: [0.1, 0.3, 0.55] }); sections.forEach((section) => navObserver.observe(section)); }
   function updateHeader() { header?.classList.toggle('is-scrolled', window.scrollY > 10); } updateHeader(); window.addEventListener('scroll', updateHeader, { passive: true });
 
-  const form = document.querySelector('[data-contact-form]'); const formStatus = document.querySelector('[data-form-status]');
-  form?.addEventListener('submit', (event) => { event.preventDefault(); const values = new FormData(form); const name = String(values.get('name') || '').trim(); const email = String(values.get('email') || '').trim(); const message = String(values.get('message') || '').trim(); const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); if (!name || !validEmail || !message) { formStatus.textContent = 'Please add your name, a valid email address, and a message.'; formStatus.dataset.state = 'error'; return; } const subject = `Project enquiry from ${name}`; const body = `Name: ${name}\nEmail: ${email}\n\nProject details:\n${message}`; formStatus.textContent = 'Your email app should open with this message ready to send.'; formStatus.dataset.state = 'success'; window.location.href = `mailto:jeremiahdavidangpunzalan@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`; });
   document.querySelector('[data-current-year]')?.replaceChildren(String(new Date().getFullYear()));
 })();

@@ -1,1 +1,8 @@
 .agent
+.env
+backend/vendor/
+backend/private/vendor/
+backend/private/*.json
+backend/private/composer.lock
+backend/public/media/*
+!backend/public/media/.htaccess

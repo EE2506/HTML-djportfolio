@@ -1,0 +1,15 @@
+:root { color-scheme: light dark; font: 16px/1.55 system-ui, sans-serif; }
+body { margin: 0; background: Canvas; color: CanvasText; }
+main { max-width: 55rem; margin: 0 auto; padding: 1.5rem; }
+section { margin-block: 2rem; }
+.panel, .message { padding: 1rem; border: 1px solid GrayText; border-radius: .6rem; margin-block: .75rem; }
+label:not(.check) { display: grid; gap: .25rem; margin-block: .6rem; }
+input, select, textarea, button { font: inherit; max-width: 100%; box-sizing: border-box; }
+input:not([type="checkbox"]), select, textarea, button { padding: .5rem; }
+button { cursor: pointer; }
+fieldset { margin-block: .75rem; }
+.check { display: inline-flex; align-items: center; gap: .35rem; margin: .25rem .7rem .25rem 0; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-block-start: .5rem; }
+.taxonomy { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; }
+.taxonomy label, .taxonomy .actions { margin: 0; }
+.taxonomy input[type="number"] { width: 7rem; }

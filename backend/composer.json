@@ -1,0 +1,10 @@
+{
+  "require": {
+    "php": ">=8.2",
+    "ext-curl": "*",
+    "ext-fileinfo": "*",
+    "ext-pdo_mysql": "*",
+    "ext-openssl": "*",
+    "phpmailer/phpmailer": "^7.0"
+  }
+}
