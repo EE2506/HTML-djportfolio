@@ -19,7 +19,13 @@ function projectTagIds(PDO $db): array
     return $result;
 }
 
-function mergeCatalog(array $repos, array $rows, array $categories, array $tags, array $tagIds): array
+function projectSamples(PDO $db, int $projectId): array
+{
+    return sql($db, 'SELECT image FROM project_samples WHERE project_id = ? ORDER BY position', [$projectId])
+        ->fetchAll(PDO::FETCH_COLUMN);
+}
+
+function mergeCatalog(array $repos, array $rows, array $categories, array $tags, array $tagIds, array $samples = []): array
 {
     $overrides = [];
     $entries = [];
@@ -53,6 +59,7 @@ function mergeCatalog(array $repos, array $rows, array $categories, array $tags,
             'tags' => array_map(static fn (int $id): string => $tags[$id], $tagIds[$row['id'] ?? 0] ?? []),
             'image' => $row['image'] ?? null,
             'imageAlt' => $row['image_alt'] ?? $title,
+            'samples' => $samples[$row['id'] ?? 0] ?? [],
             'repoUrl' => $repo ? 'https://github.com/EE2506/' . rawurlencode($repo['name']) : null,
             'liveUrl' => $row['live_url'] ?? null,
             'pinned' => (int) ($row['pinned'] ?? 0),
@@ -81,7 +88,11 @@ function readCatalog(PDO $db, array $repos): array
         $categories = sql($db, 'SELECT id, name, slug FROM categories ORDER BY sort_order, id')
             ->fetchAll(PDO::FETCH_UNIQUE);
         $tags = sql($db, 'SELECT id, name FROM tags')->fetchAll(PDO::FETCH_KEY_PAIR);
-        $result = mergeCatalog($repos, $rows, $categories, $tags, projectTagIds($db));
+        $samples = [];
+        foreach (sql($db, 'SELECT project_id, image FROM project_samples ORDER BY project_id, position') as $sample) {
+            $samples[$sample['project_id']][] = $sample['image'];
+        }
+        $result = mergeCatalog($repos, $rows, $categories, $tags, projectTagIds($db), $samples);
         $db->commit();
         return $result;
     } catch (Throwable $error) {

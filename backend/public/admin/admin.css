@@ -112,6 +112,11 @@ button[value$="-delete"] { color: var(--danger); }
 fieldset { min-width: 0; margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; }
 .check { display: inline-flex; align-items: center; gap: 8px; margin: 4px 12px 4px 0; min-height: 32px; }
 .project-editor img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
+.project-editor .image-drop { border-style: dashed; min-height: 64px; }
+.image-help { color: var(--muted); font-size: .875rem; }
+.image-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: 12px; margin-top: 12px; }
+.image-choice { min-width: 0; }
+.image-choice img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
 .taxonomy { display: grid; align-items: end; gap: 8px; margin-block-start: 12px; padding-block-start: 12px; border-top: 1px solid var(--line); }
 .category-fields { grid-template-columns: minmax(0, 1fr) 5rem; }
 .category-fields label:first-of-type { grid-column: 1 / -1; }

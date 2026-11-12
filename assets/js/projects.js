@@ -3,7 +3,37 @@ window.loadPortfolioProjects = (request, api) => {
   const filters = document.querySelector('[data-project-filters]');
   const status = document.querySelector('[data-project-status]');
   const moreButton = document.querySelector('[data-more-projects]');
+  const gallery = document.querySelector('.sample-gallery');
   if (!grid || !filters || !status || !moreButton) return;
+
+  const sampleImage = gallery?.querySelector('[data-sample-image]');
+  const sampleCount = gallery?.querySelector('[data-sample-count]');
+  const sampleDownload = gallery?.querySelector('[data-sample-download]');
+  const previousSample = gallery?.querySelector('[data-sample-prev]');
+  const nextSample = gallery?.querySelector('[data-sample-next]');
+  let galleryImages = [];
+  let galleryProject;
+  let sampleIndex = 0;
+  const validImage = (name) => typeof name === 'string' && /^[a-f0-9]{32}\.(jpg|png|webp)$/.test(name);
+
+  function showSample() {
+    const name = galleryImages[sampleIndex];
+    sampleImage.alt = name === galleryProject.image
+      ? galleryProject.imageAlt || galleryProject.title
+      : galleryProject.title + ' sample ' + (sampleIndex + 1);
+    sampleImage.src = new URL('media/' + name, api);
+    sampleCount.textContent = (sampleIndex + 1) + ' of ' + galleryImages.length;
+    const download = new URL(api);
+    download.search = new URLSearchParams({ feed: 'download', image: name });
+    sampleDownload.href = download;
+    previousSample.disabled = sampleIndex === 0;
+    nextSample.disabled = sampleIndex === galleryImages.length - 1;
+  }
+
+  previousSample?.addEventListener('click', () => { sampleIndex--; showSample(); });
+  nextSample?.addEventListener('click', () => { sampleIndex++; showSample(); });
+  gallery?.querySelector('[data-sample-back]').addEventListener('click', () => gallery.close());
+  gallery?.addEventListener('close', () => sampleImage.removeAttribute('src'));
 
   let page = 1;
   let category = '';
@@ -36,24 +66,33 @@ window.loadPortfolioProjects = (request, api) => {
     visual.append(placeholder);
     const links = element('div', 'project-bottom');
     const secondary = element('div', 'project-secondary');
-    if (/^[a-f0-9]{32}\.(jpg|png|webp)$/.test(project.image)) {
+    const samples = [...new Set([project.image, ...(Array.isArray(project.samples) ? project.samples : [])])].filter(validImage);
+    if (validImage(project.image)) {
       const image = element('img', 'project-image');
       image.alt = project.imageAlt;
       image.loading = 'lazy';
       image.decoding = 'async';
-      const sample = element('a', 'project-link', 'View sample ↗');
-      sample.href = new URL('media/' + project.image, api);
-      sample.target = '_blank';
-      sample.rel = 'noopener';
-      sample.setAttribute('aria-label', 'View sample image for ' + project.title + ' (opens in a new tab)');
-      secondary.append(sample);
-      image.addEventListener('error', () => {
-        image.remove();
-        sample.remove();
-        if (!secondary.children.length && links.children.length === 1) links.remove();
-      }, { once: true });
-      image.src = sample.href;
+      image.addEventListener('error', () => image.remove(), { once: true });
+      image.src = new URL('media/' + project.image, api);
       visual.append(image);
+    }
+    if (samples.length && gallery) {
+      const sample = element('button', 'project-link sample-trigger', 'View samples');
+      sample.type = 'button';
+      sample.setAttribute('aria-haspopup', 'dialog');
+      sample.addEventListener('click', () => {
+        galleryImages = samples;
+        galleryProject = project;
+        sampleIndex = 0;
+        gallery.querySelector('h2').textContent = project.title;
+        showSample();
+        gallery.showModal();
+      });
+      secondary.append(sample);
+    } else if (samples.length) {
+      const sample = element('a', 'project-link', 'View sample');
+      sample.href = new URL('media/' + samples[0], api);
+      secondary.append(sample);
     }
     const copy = element('div', 'project-copy');
     copy.append(element('p', 'project-type', project.category.name), element('h3', '', project.title));

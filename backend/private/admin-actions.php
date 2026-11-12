@@ -37,14 +37,12 @@ function imageType(string $path): array
     return [$types[$mime], $dimensions[0], $dimensions[1]];
 }
 
-function storeImage(string $media): ?string
+function storeImage(string $media, array $file): string
 {
-    $file = $_FILES['image'] ?? ['error' => UPLOAD_ERR_NO_FILE];
-    if ($file['error'] === UPLOAD_ERR_NO_FILE) {
-        return null;
-    }
-    if ($file['error'] !== UPLOAD_ERR_OK || $file['size'] > 5 * 1024 * 1024 || !is_uploaded_file($file['tmp_name'])) {
-        throw new DomainException('Upload one image no larger than 5 MB.');
+    if (($file['error'] ?? null) !== UPLOAD_ERR_OK || !is_int($file['size'] ?? null)
+        || $file['size'] > 5 * 1024 * 1024 || !is_string($file['tmp_name'] ?? null)
+        || !is_uploaded_file($file['tmp_name'])) {
+        throw new DomainException('Each image must be no larger than 5 MB.');
     }
     [$extension, $width, $height] = imageType($file['tmp_name']);
     $base = bin2hex(random_bytes(16));
@@ -70,6 +68,45 @@ function storeImage(string $media): ?string
     return $name;
 }
 
+function saveProjectImages(string $media, array $current, array &$uploaded): array
+{
+    $remove = $_POST['remove_images'] ?? [];
+    if (!is_array($remove) || count($remove) > 10
+        || array_filter($remove, static fn ($name) => !in_array($name, $current, true))) {
+        throw new DomainException('Select images from this project.');
+    }
+    $images = array_values(array_diff($current, $remove));
+    $cover = input('cover_image', 80);
+    if ($cover !== '' && !in_array($cover, $current, true)) {
+        throw new DomainException('Select a cover from this project.');
+    }
+    if (in_array($cover, $images, true)) {
+        $images = [$cover, ...array_diff($images, [$cover])];
+    }
+
+    $files = $_FILES['images'] ?? [];
+    $errors = $files['error'] ?? [];
+    if (!is_array($errors) || count($errors) > 10) {
+        throw new DomainException('A project can have up to 10 images.');
+    }
+    foreach ($errors as $i => $error) {
+        if ($error === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+        if (count($images) >= 10) {
+            throw new DomainException('A project can have up to 10 images.');
+        }
+        $name = storeImage($media, [
+            'error' => $error,
+            'size' => $files['size'][$i] ?? null,
+            'tmp_name' => $files['tmp_name'][$i] ?? null,
+        ]);
+        $uploaded[] = $name;
+        $images[] = $name;
+    }
+    return $images;
+}
+
 function removeImage(string $media, ?string $name): void
 {
     if ($name && preg_match('/\A[a-f0-9]{32}\.(jpg|png|webp)\z/', $name) && is_file($media . '/' . $name)
@@ -78,7 +115,7 @@ function removeImage(string $media, ?string $name): void
     }
 }
 
-function saveProject(PDO $db, array $repos, string $media, ?string &$uploaded): ?string
+function saveProject(PDO $db, array $repos, string $media, array &$uploaded): array
 {
     $id = number('id', 0);
     $repoId = input('github_id', 20);
@@ -109,9 +146,12 @@ function saveProject(PDO $db, array $repos, string $media, ?string &$uploaded): 
             throw new DomainException('A selected tag no longer exists.');
         }
     }
-    $uploaded = storeImage($media);
-    $oldImage = $existing['image'] ?? null;
-    $image = $uploaded ?? (isset($_POST['remove_image']) ? null : $oldImage);
+    $current = $id ? projectSamples($db, $id) : [];
+    if (!empty($existing['image'])) {
+        array_unshift($current, $existing['image']);
+    }
+    $images = saveProjectImages($media, $current, $uploaded);
+    $image = $images[0] ?? null;
     $values = [$title === '' ? null : $title, $description === '' ? null : $description, $category,
         $image, $alt === '' ? null : $alt, $url === '' ? null : $url,
         (int) isset($_POST['hidden']), (int) isset($_POST['pinned']), $order];
@@ -128,10 +168,14 @@ function saveProject(PDO $db, array $repos, string $media, ?string &$uploaded): 
     foreach (array_unique($tagIds) as $tag) {
         sql($db, 'INSERT INTO project_tags (project_id, tag_id) VALUES (?, ?)', [$id, $tag]);
     }
-    return $oldImage !== $image ? $oldImage : null;
+    sql($db, 'DELETE FROM project_samples WHERE project_id=?', [$id]);
+    foreach (array_slice($images, 1) as $position => $sample) {
+        sql($db, 'INSERT INTO project_samples (project_id, position, image) VALUES (?, ?, ?)', [$id, $position, $sample]);
+    }
+    return array_diff($current, $images);
 }
 
-function updateAdmin(PDO $db, string $action, array $repos, string $media, ?string &$uploaded): ?string
+function updateAdmin(PDO $db, string $action, array $repos, string $media, array &$uploaded): array
 {
     switch ($action) {
         case 'project-save':
@@ -142,8 +186,9 @@ function updateAdmin(PDO $db, string $action, array $repos, string $media, ?stri
             if (!$row) {
                 throw new DomainException('Only custom projects can be deleted. Hide GitHub projects instead.');
             }
+            $images = projectSamples($db, $id);
             sql($db, 'DELETE FROM projects WHERE id=? AND github_id IS NULL', [$id]);
-            return $row['image'];
+            return $row['image'] ? [$row['image'], ...$images] : $images;
         case 'category-save':
             $name = input('name', 80, true);
             $slug = input('slug', 80, true);
@@ -183,5 +228,5 @@ function updateAdmin(PDO $db, string $action, array $repos, string $media, ?stri
         default:
             throw new DomainException('Unknown action.');
     }
-    return null;
+    return [];
 }

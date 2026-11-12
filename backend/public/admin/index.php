@@ -84,7 +84,7 @@ function mutate(PDO $db, string $private, string $action, array $repos, bool $gi
 {
     $media = dirname(__DIR__) . '/media';
     withLock($private . '/catalog.json', static function ($file) use ($db, $action, $repos, $media, $githubAvailable): void {
-        $uploaded = null;
+        $uploaded = [];
         $db->beginTransaction();
         try {
             $removed = updateAdmin($db, $action, $repos, $media, $uploaded);
@@ -95,10 +95,14 @@ function mutate(PDO $db, string $private, string $action, array $repos, bool $gi
             if ($db->inTransaction()) {
                 $db->rollBack();
             }
-            removeImage($media, $uploaded);
+            foreach ($uploaded as $image) {
+                removeImage($media, $image);
+            }
             throw $error;
         }
-        removeImage($media, $removed);
+        foreach ($removed as $image) {
+            removeImage($media, $image);
+        }
         error_log('Portfolio admin saved ' . $action);
         try {
             if ($githubAvailable) {
@@ -123,9 +127,15 @@ $tags = [];
 $assignments = [];
 $selected = null;
 $selectedRepo = null;
+$images = [];
 $editing = false;
 
 try {
+    $postLimit = ini_parse_quantity(ini_get('post_max_size'));
+    if ($post && $postLimit > 0 && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > $postLimit) {
+        http_response_code(413);
+        throw new DomainException('This upload is too large. Select fewer images and try again.');
+    }
     if ($post && !$validToken) {
         http_response_code(403);
         throw new DomainException('This form expired. Reload the page and try again.');
@@ -178,6 +188,12 @@ try {
         $editId = filter_input(INPUT_GET, 'edit', FILTER_VALIDATE_INT);
         $repoId = $_GET['repo'] ?? null;
         $selected = $editId ? (array_column($rows, null, 'id')[$editId] ?? null) : null;
+        if ($selected) {
+            $images = projectSamples($db, (int) $selected['id']);
+            if (!empty($selected['image'])) {
+                array_unshift($images, $selected['image']);
+            }
+        }
         $selectedRepo = $selected ? ($repos[$selected['github_id']] ?? null)
             : (is_string($repoId) ? ($repos[$repoId] ?? null) : null);
         $editing = $selected || $selectedRepo || isset($_GET['new']);
@@ -200,7 +216,7 @@ try {
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="robots" content="noindex,nofollow">
     <title>Portfolio admin</title>
-    <link rel="stylesheet" href="admin.css?v=2">
+    <link rel="stylesheet" href="admin.css?v=3">
 </head>
 <body>
 <main class="<?= $authenticated ? 'workspace' : 'sign-in' ?>">
@@ -256,12 +272,24 @@ try {
                         <?php endforeach; ?>
                         <?php if (!$tags): ?><p>Add tags in the Tags section first.</p><?php endif; ?>
                     </fieldset>
-                    <label>Image <input type="file" name="image" accept="image/jpeg,image/png,image/webp"></label>
-                    <label>Image alt text <input name="image_alt" maxlength="180" value="<?= e($selected['image_alt'] ?? '') ?>"></label>
-                    <?php if (!empty($selected['image'])): ?>
-                        <img width="160" src="../media/<?= e(rawurlencode($selected['image'])) ?>" alt="<?= e($selected['image_alt'] ?? 'Current project image') ?>">
-                        <label class="check"><input type="checkbox" name="remove_image"> Remove image</label>
-                    <?php endif; ?>
+                    <fieldset><legend>Sample images</legend>
+                        <label>Drop images here or browse
+                            <input class="image-drop" type="file" name="images[]" accept="image/jpeg,image/png,image/webp" multiple>
+                        </label>
+                        <p class="image-help">Up to 10 images per project, 5 MB each. JPEG, PNG, or WebP.</p>
+                        <?php if ($images): ?>
+                            <div class="image-choices">
+                                <?php foreach ($images as $position => $image): ?>
+                                    <div class="image-choice">
+                                        <img width="160" loading="lazy" src="../media/<?= e(rawurlencode($image)) ?>" alt="Sample <?= e($position + 1) ?>">
+                                        <label class="check"><input type="radio" name="cover_image" value="<?= e($image) ?>" <?= $position === 0 ? 'checked' : '' ?>> Cover</label>
+                                        <label class="check"><input type="checkbox" name="remove_images[]" value="<?= e($image) ?>"> Remove</label>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                        <label>Cover alt text <input name="image_alt" maxlength="180" value="<?= e($selected['image_alt'] ?? '') ?>"></label>
+                    </fieldset>
                     <label>Live demo URL <input type="url" name="live_url" maxlength="2048" value="<?= e($selected['live_url'] ?? '') ?>"></label>
                     <label>Order <input type="number" name="sort_order" min="-100000" max="100000" required value="<?= e($selected['sort_order'] ?? 0) ?>"></label>
                     <label class="check"><input type="checkbox" name="pinned" <?= !empty($selected['pinned']) ? 'checked' : '' ?>> Pin project</label>
@@ -269,7 +297,7 @@ try {
                     <div class="actions">
                         <button class="primary" name="action" value="project-save">Save project</button>
                         <?php if ($selected && $selected['github_id'] === null): ?>
-                            <button name="action" value="project-delete" formnovalidate>Delete case study and image</button>
+                            <button name="action" value="project-delete" formnovalidate>Delete case study and images</button>
                         <?php endif; ?>
                         <a href="./">Cancel</a>
                     </div>

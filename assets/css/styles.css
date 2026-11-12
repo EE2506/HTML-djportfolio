@@ -130,6 +130,23 @@ svg { display:block; }
 .project-bottom, .project-secondary { align-items: center; flex-wrap: wrap; }
 .project-secondary { display: flex; gap: .75rem; }
 .project-demo { margin-inline-start: auto; }
+.sample-trigger { padding: 0; border: 0; background: none; cursor: pointer; }
+.sample-trigger:hover { text-decoration: underline; }
+.sample-gallery {
+  width: min(52rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  padding: clamp(.875rem, 3vw, 1.5rem);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--paper-raised);
+  color: var(--ink);
+}
+.sample-gallery::backdrop { background: rgb(8 14 27 / .78); }
+.sample-gallery h2 { margin: 0; font-size: clamp(1.2rem, 3vw, 1.6rem); overflow-wrap: anywhere; }
+.sample-gallery-bar, .sample-gallery-nav { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
+.sample-gallery-bar { justify-content: space-between; }
+.sample-gallery img { display: block; width: 100%; height: min(57vh, 34rem); margin-block: 1rem; object-fit: contain; background: var(--paper); }
+.sample-gallery-nav button:disabled { opacity: .45; cursor: default; }
 .project-skeleton {
   min-height: 12rem;
   aspect-ratio: 16 / 11;

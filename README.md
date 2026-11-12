@@ -34,12 +34,12 @@ Open https://shotiii.pawt-services.com/portfolio-api/admin/ directly and sign in
 - Tag an owned public repository with portfolio to feature it. GitHub is refreshed every 30 minutes. An admin override is tied to the repository ID, so it follows renames. Untagged, private, archived, and forked repos are excluded on a successful GitHub refresh.
 - Select a repository to override the title, description, category, tags, image, or demo URL. Use Hide to remove it from the public list. Add a case study for work without a public repo.
 - Pin important projects. Smaller order numbers appear first within pinned and unpinned groups. Choose one category and any existing tags. Add, rename, or reorder categories in the admin. Move the projects assigned to a category before deleting it.
-- Upload JPEG, PNG, or WebP up to 5 MB and 16 megapixels. GD resizes images to at most 1,600 px on the long edge and re-encodes them to WebP. The project title supplies the alt text if the field is blank.
+- Drop or select up to 10 JPEG, PNG, or WebP images per project, up to 5 MB and 16 megapixels each. Choose a cover or remove images when editing the project. GD resizes images to at most 1,600 px on the long edge and re-encodes them to WebP. Visitors can browse and download the images from **View samples**.
 - Changes apply on the next public request. If GitHub is down, the API uses the last successful GitHub list. If MySQL is down, it uses the last saved public result. The direct email link works independently of the API.
 
 ## Database and backups
 
-categories stores names, slugs, and ordering. projects stores custom entries and GitHub overrides, including a unique numeric GitHub ID. tags and project_tags link reusable tags to projects. schema_migrations records applied versions. Login limits and public snapshots are stored in private JSON files.
+categories stores names, slugs, and ordering. projects stores custom entries, GitHub overrides, and cover images. project_samples stores additional images in order. tags and project_tags link reusable tags to projects. schema_migrations records applied versions. Login limits and public snapshots are stored in private JSON files.
 
 Use Hostinger's database export or mysqldump to back up the dedicated portfolio database. Back up public_html/portfolio-api/media/ with the database so restored projects retain their images. Keep backups private and test restoring to a separate database.
 

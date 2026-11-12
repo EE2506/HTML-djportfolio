@@ -37,7 +37,7 @@ const fixture = () => {
   Object.defineProperty(HTMLImageElement.prototype, 'src', {
     ...imageSource,
     set(value) {
-      if (String(value).endsWith('/media/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.webp')) {
+      if (/\/media\/[ab]{32}\.webp$/.test(String(value))) {
         value = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
       }
       imageSource.set.call(this, value);
@@ -48,6 +48,7 @@ const fixture = () => {
     category, id: 'custom-' + index, title: category.name + ' example',
     description: 'Test description', tags: ['PHP'], image: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.webp',
     imageAlt: 'Project screenshot', repoUrl: null, liveUrl: index === 0 ? 'https://example.com/demo' : null,
+    samples: index === 0 ? ['bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.webp'] : [],
   }));
   const original = window.fetch;
   window.fetch = (input, options) => {
@@ -140,14 +141,21 @@ try {
   await waitFor('document.querySelectorAll("#project-grid .project-card").length === 2');
   const actionLayout = () => {
     const both = document.querySelector('#custom-0');
-    const sample = both.querySelector('.project-secondary a');
+    const sample = both.querySelector('.sample-trigger');
     const demo = both.querySelector('.project-demo');
     const sampleOnly = document.querySelector('#custom-1');
-    return sample.href.endsWith('/media/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.webp')
-      && sample.getBoundingClientRect().right < demo.getBoundingClientRect().left
-      && sampleOnly.querySelector('.project-secondary a') && !sampleOnly.querySelector('.project-demo');
+    return sample.getBoundingClientRect().right < demo.getBoundingClientRect().left
+      && sampleOnly.querySelector('.sample-trigger') && !sampleOnly.querySelector('.project-demo');
   };
   assert.equal(await evaluate('(' + actionLayout + ')()'), true);
+  await evaluate('document.querySelector("#custom-0 .sample-trigger").click()');
+  assert.equal(await evaluate('document.querySelector(".sample-gallery").open'), true);
+  assert.equal(await evaluate('document.querySelector("[data-sample-count]").textContent'), '1 of 2');
+  await evaluate('document.querySelector("[data-sample-next]").click()');
+  assert.equal(await evaluate('document.querySelector("[data-sample-count]").textContent'), '2 of 2');
+  assert.match(await evaluate('document.querySelector("[data-sample-download]").href'), /feed=download&image=b{32}\.webp$/);
+  await evaluate('document.querySelector("[data-sample-back]").click()');
+  await waitFor('location.hash === "#work" && !document.querySelector(".sample-gallery").open');
   await evaluate('document.querySelector("[data-category=apps]").click()');
   await waitFor('document.querySelector(".project-skeleton") && document.querySelector("#project-grid").getAttribute("aria-busy") === "true"');
   await evaluate('document.querySelector("[data-category=websites]").click()');

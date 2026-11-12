@@ -61,6 +61,24 @@ function sendContact(string $private, string $name, string $email, string $messa
 
 try {
     require_once $private . '/projects.php';
+    if ($method === 'GET' && $feed === 'download') {
+        $image = $_GET['image'] ?? '';
+        if (!is_string($image) || !preg_match('/\A[a-f0-9]{32}\.(jpg|png|webp)\z/', $image, $matches)) {
+            reply(404, ['error' => 'Image not found.']);
+        }
+        $path = __DIR__ . '/media/' . $image;
+        $file = !is_link($path) && is_file($path) ? @fopen($path, 'rb') : false;
+        if (!$file) {
+            reply(404, ['error' => 'Image not found.']);
+        }
+        $extension = $matches[1];
+        $type = $extension === 'jpg' ? 'jpeg' : $extension;
+        header('Content-Type: image/' . $type);
+        header('Content-Disposition: attachment; filename="project-sample-' . substr($image, 0, 8) . '.' . $extension . '"');
+        fpassthru($file);
+        fclose($file);
+        exit;
+    }
     if ($method === 'GET' && $feed === 'projects') {
         $page = filter_var($_GET['page'] ?? '1', FILTER_VALIDATE_INT, [
             'options' => ['min_range' => 1, 'max_range' => 10000],

@@ -48,15 +48,17 @@ def item(project_id):
     return next(row for row in catalog()["items"] if row["id"] == project_id)
 
 
-def upload(data, expected, **fields):
+def upload(images, expected, **fields):
     path = "/admin/?edit=2"
     boundary = "portfolio-integration-fixture"
     body = b""
     for key, value in {"csrf": token(path), "action": "project-save", "id": 2, "title": "Case study",
                        "category_id": 1, "sort_order": -1, **fields}.items():
         body += f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{value}\r\n'.encode()
-    body += (f'--{boundary}\r\nContent-Disposition: form-data; name="image"; filename="test.webp"'
-             '\r\nContent-Type: image/webp\r\n\r\n').encode() + data + f"\r\n--{boundary}--\r\n".encode()
+    for data in images:
+        body += (f'--{boundary}\r\nContent-Disposition: form-data; name="images[]"; filename="test.webp"'
+                 '\r\nContent-Type: image/webp\r\n\r\n').encode() + data + b"\r\n"
+    body += f"--{boundary}--\r\n".encode()
     status, response = call(path, body, {"Content-Type": "multipart/form-data; boundary=" + boundary})
     assert status == 200 and expected in response, (status, response[:2000])
 
@@ -107,15 +109,28 @@ def main():
     assert "Changes saved." in admin("tag-delete", id=1)[1]
 
     portrait = Path(__file__).resolve().parents[2] / "assets/img/dj-portrait.webp"
-    upload(b"not an image", "Upload a valid JPEG")
-    upload(b"x" * (5 * 1024 * 1024 + 1), "Upload one image no larger than 5 MB")
-    upload(portrait.read_bytes(), "Changes saved.")
+    upload([portrait.read_bytes(), b"not an image"], "Upload a valid JPEG")
+    media = Path(sys.argv[1])
+    assert not list(media.glob("*.webp")), "Invalid batches must roll back earlier uploads"
+    upload([b"x" * (5 * 1024 * 1024 + 1)], "Each image must be no larger than 5 MB")
+    upload([portrait.read_bytes()] * 2, "Changes saved.")
     image = item("custom-2")["image"]
+    sample, = item("custom-2")["samples"]
     assert re.fullmatch(r"[a-f0-9]{32}\.webp", image)
     assert item("custom-2")["imageAlt"] == "Case study"
+    assert sample != image
+    with client.open(BASE + "/feed.php?feed=download&image=" + sample, timeout=10) as download:
+        assert download.headers["Content-Disposition"].startswith("attachment;")
+        assert download.read() == (media / sample).read_bytes()
+    assert call("/feed.php?feed=download&image=not-an-image")[0] == 404
+    assert "Changes saved." in admin("project-save", id=2, title="Case study", category_id=1,
+                                     sort_order=-1, cover_image=sample)[1]
+    assert item("custom-2")["image"] == sample and item("custom-2")["samples"] == [image]
+    assert "Changes saved." in admin("project-save", id=2, title="Case study", category_id=1,
+                                     sort_order=-1, **{"remove_images[]": [image]})[1]
+    assert item("custom-2")["samples"] == [] and not (media / image).exists()
     assert "Changes saved." in admin("project-delete", id=2)[1]
-    media = Path(sys.argv[1])
-    assert not (media / image).exists(), "Removed project image should be deleted"
+    assert not (media / sample).exists(), "Removed project image should be deleted"
     assert [row["id"] for row in catalog()["items"]] == ["github-102"]
 
     # Force a database outage without changing the running server or its database.
