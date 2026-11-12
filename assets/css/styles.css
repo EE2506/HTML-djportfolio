@@ -127,6 +127,16 @@ svg { display:block; }
 .project-image-placeholder { font-weight: 800; color: var(--project-accent); text-align: center; }
 .project-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .project-copy h3 { overflow-wrap: anywhere; }
+.project-bottom, .project-secondary { align-items: center; flex-wrap: wrap; }
+.project-secondary { display: flex; gap: .75rem; }
+.project-demo { margin-inline-start: auto; }
+.project-skeleton {
+  min-height: 12rem;
+  aspect-ratio: 16 / 11;
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background: var(--paper-raised);
+}
 .button[hidden] { display: none; }
 .work-section .project-controls { margin-top: clamp(2rem, 4vw, 3.2rem); }
 .skills-section .capability-grid, .services-section .service-list { margin-top: clamp(2rem, 4vw, 3.2rem); }

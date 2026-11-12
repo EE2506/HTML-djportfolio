@@ -33,10 +33,21 @@ async function evaluate(expression) {
 }
 
 const fixture = () => {
+  const imageSource = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+  Object.defineProperty(HTMLImageElement.prototype, 'src', {
+    ...imageSource,
+    set(value) {
+      if (String(value).endsWith('/media/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.webp')) {
+        value = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+      }
+      imageSource.set.call(this, value);
+    },
+  });
   const categories = [{ slug: 'websites', name: 'Websites' }, { slug: 'apps', name: 'Web apps' }];
   const items = categories.map((category, index) => ({
     category, id: 'custom-' + index, title: category.name + ' example',
-    description: 'Test description', tags: ['PHP'], image: null, repoUrl: null, liveUrl: null,
+    description: 'Test description', tags: ['PHP'], image: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.webp',
+    imageAlt: 'Project screenshot', repoUrl: null, liveUrl: index === 0 ? 'https://example.com/demo' : null,
   }));
   const original = window.fetch;
   window.fetch = (input, options) => {
@@ -50,6 +61,13 @@ const fixture = () => {
     if (mode === 'down') return Promise.reject(new Error('Offline'));
     if (mode === 'empty') return Promise.resolve(Response.json({ items: [], categories: [], more: false }));
     const selected = url.searchParams.get('category');
+    window.projectRequests ??= [];
+    window.projectRequests.push({ selected, signal: options.signal });
+    if (mode === 'loading' && selected) {
+      return new Promise((resolve) => setTimeout(() => resolve(Response.json({
+        items: items.filter((item) => item.category.slug === selected), categories, more: false,
+      })), 600));
+    }
     return Promise.resolve(Response.json({
       items: selected ? items.filter((item) => item.category.slug === selected) : items, categories, more: false,
     }));
@@ -118,6 +136,28 @@ try {
   await evaluate('window.failContact = false; document.querySelector("[data-contact-form]").requestSubmit()');
   await waitFor('document.querySelector("[data-form-status]").dataset.state === "success"');
   assert.equal(await evaluate('document.querySelector("[data-contact-form]").elements.message.value'), '');
+  await navigate('?fixture=loading');
+  await waitFor('document.querySelectorAll("#project-grid .project-card").length === 2');
+  const actionLayout = () => {
+    const both = document.querySelector('#custom-0');
+    const sample = both.querySelector('.project-secondary a');
+    const demo = both.querySelector('.project-demo');
+    const sampleOnly = document.querySelector('#custom-1');
+    return sample.href.endsWith('/media/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.webp')
+      && sample.getBoundingClientRect().right < demo.getBoundingClientRect().left
+      && sampleOnly.querySelector('.project-secondary a') && !sampleOnly.querySelector('.project-demo');
+  };
+  assert.equal(await evaluate('(' + actionLayout + ')()'), true);
+  await evaluate('document.querySelector("[data-category=apps]").click()');
+  await waitFor('document.querySelector(".project-skeleton") && document.querySelector("#project-grid").getAttribute("aria-busy") === "true"');
+  await evaluate('document.querySelector("[data-category=websites]").click()');
+  await waitFor('window.projectRequests.some(r => r.selected === "apps" && r.signal.aborted)');
+  await waitFor('document.querySelector("#project-grid h3")?.textContent === "Websites example"');
+  await evaluate('document.querySelector("[data-project-filters] button").click()');
+  await waitFor('document.querySelectorAll("#project-grid .project-card").length === 2');
+  await evaluate('document.querySelector("[data-category=websites]").click()');
+  assert.equal(await evaluate('document.querySelector("#project-grid h3").textContent'), 'Websites example');
+  assert.equal(await evaluate('window.projectRequests.filter(r => r.selected === "websites").length'), 1);
   await navigate('?fixture=empty');
   await waitFor('document.querySelector("[data-project-status]").textContent.includes("No projects")');
   await navigate('?fixture=down');

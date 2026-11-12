@@ -6,7 +6,9 @@
   async function request(feed, page, options, category = '') {
     const url = new URL(api);
     url.search = new URLSearchParams({ feed, page, category });
-    const response = await fetch(url, { ...options, signal: AbortSignal.timeout(20000) });
+    const timeout = AbortSignal.timeout(20000);
+    const signal = options?.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+    const response = await fetch(url, { ...options, signal });
     if (!response.ok) throw new Error('Request failed: ' + response.status);
     return response.json();
   }
