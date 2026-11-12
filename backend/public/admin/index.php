@@ -200,30 +200,40 @@ try {
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="robots" content="noindex,nofollow">
     <title>Portfolio admin</title>
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="admin.css?v=2">
 </head>
 <body>
-<main>
-    <h1>Portfolio admin</h1>
+<main class="<?= $authenticated ? 'workspace' : 'sign-in' ?>">
+    <header class="masthead">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">DJ</span><div>
+            <p>DJ Punzalan</p>
+            <h1>Portfolio admin</h1>
+        </div></div>
+        <?php if ($authenticated): ?>
+            <form method="post"><?php csrf(); ?><button name="action" value="logout">Sign out</button></form>
+        <?php endif; ?>
+    </header>
     <?php if ($message): ?><p role="status" class="message"><?= e($message) ?></p><?php endif; ?>
     <?php if (!$authenticated): ?>
         <?php if (!$configured): ?><p>Set the admin password hash in the private configuration to enable sign-in.</p>
         <?php else: ?>
-            <form method="post">
+            <form method="post" class="panel login-panel">
                 <?php csrf(); ?>
                 <input type="hidden" name="action" value="login">
                 <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
-                <button>Sign in</button>
+                <button class="primary">Sign in</button>
             </form>
         <?php endif; ?>
     <?php else: ?>
-        <form method="post" class="inline"><?php csrf(); ?><button name="action" value="logout">Sign out</button></form>
         <?php if ($post && $message): ?><p><a href="./">Back to admin</a></p><?php endif; ?>
-        <section>
-            <h2>Projects</h2>
-            <p><a href="?new=1">Add a case study</a>. Pinned projects appear first. Lower order numbers appear before higher ones.</p>
+        <div class="workspace-grid">
+        <section class="surface" aria-labelledby="projects-heading">
+            <header class="section-header">
+                <div><h2 id="projects-heading">Projects</h2><p>Pinned projects come first, then lower order numbers.</p></div>
+                <a class="button primary" href="?new=1#project-editor">Add a case study</a>
+            </header>
             <?php if ($editing): ?>
-                <form method="post" enctype="multipart/form-data" class="panel">
+                <form method="post" enctype="multipart/form-data" class="panel project-editor" id="project-editor">
                     <?php csrf(); ?>
                     <input type="hidden" name="id" value="<?= e($selected['id'] ?? 0) ?>">
                     <input type="hidden" name="github_id" value="<?= e($selectedRepo['id'] ?? '') ?>">
@@ -257,7 +267,7 @@ try {
                     <label class="check"><input type="checkbox" name="pinned" <?= !empty($selected['pinned']) ? 'checked' : '' ?>> Pin project</label>
                     <label class="check"><input type="checkbox" name="hidden" <?= !empty($selected['hidden']) ? 'checked' : '' ?>> Hide project</label>
                     <div class="actions">
-                        <button name="action" value="project-save">Save project</button>
+                        <button class="primary" name="action" value="project-save">Save project</button>
                         <?php if ($selected && $selected['github_id'] === null): ?>
                             <button name="action" value="project-delete" formnovalidate>Delete case study and image</button>
                         <?php endif; ?>
@@ -265,23 +275,36 @@ try {
                     </div>
                 </form>
             <?php endif; ?>
-            <ul>
+            <?php if (!$rows && !$repos): ?>
+                <p class="empty">Add a case study or tag a public GitHub repository with <code>portfolio</code>.</p>
+            <?php else: ?>
+            <ul class="project-list">
                 <?php foreach ($rows as $row): ?>
-                    <li><a href="?edit=<?= e($row['id']) ?>"><?= e($row['title'] ?? $repos[$row['github_id']]['name'] ?? ('GitHub repo #' . $row['github_id'])) ?></a>
-                        <?= $row['hidden'] ? ' · Hidden' : '' ?><?= $row['pinned'] ? ' · Pinned' : '' ?>
-                        · Order <?= e($row['sort_order']) ?></li>
+                    <li><a class="project-row" href="?edit=<?= e($row['id']) ?>#project-editor">
+                        <strong><?= e($row['title'] ?? $repos[$row['github_id']]['name'] ?? ('GitHub repo #' . $row['github_id'])) ?></strong>
+                        <span class="project-meta">
+                            <span><?= $row['github_id'] === null ? 'Case study' : 'GitHub' ?></span>
+                            <?php if ($row['hidden']): ?><span class="badge">Hidden</span><?php endif; ?>
+                            <?php if ($row['pinned']): ?><span class="badge">Pinned</span><?php endif; ?>
+                            <span>Order <?= e($row['sort_order']) ?></span>
+                        </span>
+                    </a></li>
                     <?php unset($repos[$row['github_id']]); ?>
                 <?php endforeach; ?>
                 <?php foreach ($repos as $repo): ?>
-                    <li><a href="?repo=<?= e($repo['id']) ?>"><?= e($repo['name']) ?></a> · GitHub</li>
+                    <li><a class="project-row" href="?repo=<?= e($repo['id']) ?>#project-editor">
+                        <strong><?= e($repo['name']) ?></strong><span class="project-meta">GitHub</span>
+                    </a></li>
                 <?php endforeach; ?>
             </ul>
+            <?php endif; ?>
         </section>
-        <section>
-            <h2>Categories</h2>
+        <aside class="taxonomy-stack" aria-label="Project organization">
+        <section class="surface" aria-labelledby="categories-heading">
+            <h2 id="categories-heading">Categories</h2>
             <p>Move projects to another category before deleting a category in use.</p>
             <?php foreach (array_merge($categories, [['id' => 0, 'name' => '', 'slug' => '', 'sort_order' => 0]]) as $category): ?>
-                <form method="post" class="panel taxonomy">
+                <form method="post" class="taxonomy category-fields">
                     <?php csrf(); ?>
                     <input type="hidden" name="id" value="<?= e($category['id']) ?>">
                     <label>Name <input name="name" maxlength="80" required value="<?= e($category['name']) ?>"></label>
@@ -292,10 +315,10 @@ try {
                 </form>
             <?php endforeach; ?>
         </section>
-        <section>
-            <h2>Tags</h2>
+        <section class="surface" aria-labelledby="tags-heading">
+            <h2 id="tags-heading">Tags</h2>
             <?php foreach (array_merge($tags, [['id' => 0, 'name' => '']]) as $tag): ?>
-                <form method="post" class="panel taxonomy">
+                <form method="post" class="taxonomy tag-fields">
                     <?php csrf(); ?>
                     <input type="hidden" name="id" value="<?= e($tag['id']) ?>">
                     <label>Name <input name="name" maxlength="60" required value="<?= e($tag['name']) ?>"></label>
@@ -304,6 +327,8 @@ try {
                 </form>
             <?php endforeach; ?>
         </section>
+        </aside>
+        </div>
     <?php endif; ?>
 </main>
 </body>
