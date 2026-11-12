@@ -93,34 +93,64 @@ try {
     if (strtolower(trim(explode(';', $_SERVER['CONTENT_TYPE'] ?? '')[0])) !== 'application/json') {
         reply(415, ['error' => 'Expected JSON.']);
     }
+    if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 16000) {
+        reply(413, ['error' => 'Message too large.']);
+    }
     $raw = file_get_contents('php://input', false, null, 0, 16001);
     if ($raw === false || strlen($raw) > 16000) {
         reply(413, ['error' => 'Message too large.']);
     }
-    $data = json_decode($raw, true);
-    $name = is_string($data['name'] ?? null) ? trim($data['name']) : '';
-    $email = is_string($data['email'] ?? null) ? trim($data['email']) : '';
-    $message = is_string($data['message'] ?? null) ? trim($data['message']) : '';
-    if (!$name || !$message || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254
-        || preg_match('/[\r\n]/', $name . $email) || !preg_match('/\A.{1,100}\z/us', $name)
-        || !preg_match('/\A.{1,3000}\z/us', $message) || !empty($data['website'])) {
+    $data = json_decode($raw, false, 8);
+    if (!($data instanceof stdClass)) {
+        reply(400, ['error' => 'Expected a JSON object.']);
+    }
+    $name = is_string($data->name ?? null) ? trim($data->name, ' ') : '';
+    $email = is_string($data->email ?? null) ? trim($data->email, ' ') : '';
+    $message = is_string($data->message ?? null) ? trim($data->message, " \t\r\n") : '';
+    $website = property_exists($data, 'website') ? $data->website : '';
+    if ($name === '' || $message === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254
+        || preg_match('/[\x00-\x1f\x7f]/', $name . $email) || !preg_match('/\A.{1,100}\z/us', $name)
+        || preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/', $message)
+        || !preg_match('/\A.{1,3000}\z/us', $message) || $website !== '') {
         reply(422, ['error' => 'Check your name, email and message, then try again.']);
     }
 
-    $ip = hash('sha256', $_SERVER['REMOTE_ADDR'] ?? '');
+    // Use the server's client address, never a client-supplied forwarding header.
+    $address = @inet_pton($_SERVER['REMOTE_ADDR'] ?? '');
+    if ($address === false) {
+        throw new RuntimeException('Contact client address unavailable.');
+    }
+    if (strlen($address) === 16 && str_starts_with($address, str_repeat("\0", 10) . "\xff\xff")) {
+        $address = substr($address, 12);
+    }
+    // Treat IPv6 privacy addresses within one /64 as the same client.
+    $ip = hash('sha256', strlen($address) === 16 ? substr($address, 0, 8) : inet_ntop($address));
     $now = time();
-    $accepted = withLock($private . '/contact-rate.json', static function ($file) use ($ip, $now): bool {
-        $events = array_values(array_filter(json_decode(stream_get_contents($file), true) ?? [],
+    $retryAfter = withLock($private . '/contact-rate.json', static function ($file) use ($ip, $now): int {
+        $state = stream_get_contents($file);
+        $saved = $state === '' ? [] : json_decode($state, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($saved) || !array_is_list($saved)) {
+            throw new RuntimeException('Invalid contact rate-limit state.');
+        }
+        foreach ($saved as $event) {
+            if (!is_int($event['at'] ?? null) || !is_string($event['ip'] ?? null)) {
+                throw new RuntimeException('Invalid contact rate-limit entry.');
+            }
+        }
+        $events = array_values(array_filter($saved,
             static fn ($event) => $event['at'] > $now - 3600));
-        $fromIp = array_filter($events, static fn ($event) => $event['ip'] === $ip);
-        if (count($events) >= 20 || count($fromIp) >= 3) {
-            return false;
+        $fromIp = array_values(array_filter($events, static fn ($event) => $event['ip'] === $ip));
+        $globalWait = count($events) >= 20 ? $events[count($events) - 20]['at'] + 3600 - $now : 0;
+        $clientWait = count($fromIp) >= 3 ? $fromIp[count($fromIp) - 3]['at'] + 3600 - $now : 0;
+        if ($globalWait || $clientWait) {
+            return max($globalWait, $clientWait);
         }
         $events[] = ['ip' => $ip, 'at' => $now];
         saveState($file, $events);
-        return true;
+        return 0;
     });
-    if (!$accepted) {
+    if ($retryAfter > 0) {
+        header('Retry-After: ' . $retryAfter);
         reply(429, ['error' => 'Too many messages. Try again later or email me directly.']);
     }
     sendContact($private, $name, $email, $message);

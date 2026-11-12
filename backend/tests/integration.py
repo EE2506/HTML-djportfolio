@@ -23,6 +23,8 @@ def call(path, data=None, headers=None):
         response = client.open(request, timeout=10)
     except urllib.error.HTTPError as error:
         response = error
+    if path == "/feed.php?feed=contact" and response.status == 429:
+        assert 1 <= int(response.headers["Retry-After"]) <= 3600
     return response.status, response.read().decode()
 
 
@@ -57,6 +59,27 @@ def upload(data, expected, **fields):
              '\r\nContent-Type: image/webp\r\n\r\n').encode() + data + f"\r\n--{boundary}--\r\n".encode()
     status, response = call(path, body, {"Content-Type": "multipart/form-data; boundary=" + boundary})
     assert status == 200 and expected in response, (status, response[:2000])
+
+
+def check_contact():
+    path = "/feed.php?feed=contact"
+    headers = {"Origin": ORIGIN, "Content-Type": "application/json"}
+    valid = {"name": "Test", "email": "fixture@example.com", "message": "Test"}
+    for payload, expected in [
+        (b"{", 400), (b"[]", 400), (b"{}", 422), (b"x" * 16001, 413),
+        (json.dumps({**valid, "website": "0"}).encode(), 422),
+        (json.dumps({**valid, "website": None}).encode(), 422),
+        (json.dumps({**valid, "name": "Test\n"}).encode(), 422),
+        (json.dumps({**valid, "message": "Text\u0000"}).encode(), 422),
+        (json.dumps({**valid, "message": "a" * 3001}).encode(), 422),
+    ]:
+        assert call(path, payload, headers)[0] == expected
+    body = json.dumps(valid).encode()
+    assert call(path, body, {**headers, "Origin": "https://example.com"})[0] == 403
+    assert call(path, body, {**headers, "Content-Type": "text/plain"})[0] == 415
+    # Each valid attempt reaches the intentionally unconfigured mailer until the IP cap.
+    statuses = [call(path, body, {**headers, "X-Forwarded-For": f"192.0.2.{n}"})[0] for n in range(1, 5)]
+    assert statuses == [503, 503, 503, 429], statuses
 
 
 def main():
@@ -104,12 +127,7 @@ def main():
     finally:
         env.write_bytes(good_config)
 
-    invalid = call("/feed.php?feed=contact", b"{}", {"Origin": ORIGIN, "Content-Type": "application/json"})
-    assert invalid[0] == 422
-    body = b'{"name":"Test","email":"fixture@example.com","message":"Test"}'
-    statuses = [call("/feed.php?feed=contact", body, {"Origin": ORIGIN, "Content-Type": "application/json"})[0]
-                for _ in range(4)]
-    assert statuses == [503, 503, 503, 429], statuses
+    check_contact()
 
     assert "Sign in" in admin("logout")[1]
     for _ in range(4):
