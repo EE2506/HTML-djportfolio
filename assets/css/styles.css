@@ -126,8 +126,12 @@ svg { display:block; }
 .project-media::after { display: none; }
 .project-image-placeholder { font-weight: 800; color: var(--project-accent); text-align: center; }
 .project-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.project-card { display: flex; flex-direction: column; }
+.project-media { flex-shrink: 0; }
+.project-copy { display: flex; flex: 1; flex-direction: column; }
 .project-copy h3 { overflow-wrap: anywhere; }
 .project-bottom, .project-secondary { align-items: center; flex-wrap: wrap; }
+.project-bottom { margin-top: auto; padding-top: 1.25rem; }
 .project-secondary { display: flex; gap: .75rem; }
 .project-demo { margin-inline-start: auto; }
 .sample-trigger { padding: 0; border: 0; background: none; cursor: pointer; }
