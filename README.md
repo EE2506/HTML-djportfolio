@@ -25,7 +25,7 @@ Use PHP 8.2 or later and HTTPS on shotiii.pawt-services.com. Create the dedicate
 - Create portfolio-private/ next to public_html. Copy the contents of backend/private/ into it, along with backend/composer.json. Keep migrations, config, cached data, and dependencies in this private directory.
 - Create portfolio-private/.env from the example. Configure DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, and ADMIN_PASSWORD_HASH. Add SMTP_USERNAME, SMTP_PASSWORD, CONTACT_TO, and SMTP_PORT. Quote passwords and the hash in the INI-style file. Port 587 uses STARTTLS and 465 uses implicit TLS.
 - From portfolio-private/, run composer install --no-dev --optimize-autoloader followed by php setup.php. Verify the admin loads over HTTPS and the public project feed returns JSON before publishing.
-- In GitHub, set Settings → Pages → Source to GitHub Actions. The workflow publishes the public site from master at https://ee2506.github.io/HTML-djportfolio/. It packages only the static files.
+- In GitHub, set Settings → Pages → Source to GitHub Actions. The workflow publishes the public site from master at https://ee2506.github.io/djportfolio/. It packages only the static files.
 
 ## Manage projects
 

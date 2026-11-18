@@ -2,7 +2,7 @@
 
 ## Goal
 
-Publish DJ's portrait, GitHub projects, and selected case studies on the free GitHub Pages site at https://ee2506.github.io/HTML-djportfolio/. DJ manages projects, categories, tags, and images from the private admin on shotiii.pawt-services.com. Visitors can send inquiries from the website.
+Publish DJ's portrait, GitHub projects, and selected case studies on the free GitHub Pages site at https://ee2506.github.io/djportfolio/. DJ manages projects, categories, tags, and images from the private admin on shotiii.pawt-services.com. Visitors can send inquiries from the website.
 
 ## Hosting
 

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ee2506.github.io/HTML-djportfolio/sitemap.xml
+Sitemap: https://ee2506.github.io/djportfolio/sitemap.xml
