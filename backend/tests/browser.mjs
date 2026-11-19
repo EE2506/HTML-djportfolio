@@ -47,6 +47,7 @@ const fixture = () => {
   const items = categories.map((category, index) => ({
     category, id: 'custom-' + index, title: category.name + ' example',
     description: 'Test description', tags: ['PHP'], image: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.webp',
+    techStack: index === 0 ? 'PHP, JavaScript, MySQL' : null,
     imageAlt: 'Project screenshot', repoUrl: null, liveUrl: index === 0 ? 'https://example.com/demo' : null,
     samples: index === 0 ? ['bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.webp'] : [],
   }));
@@ -102,6 +103,12 @@ try {
     await send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
     await navigate('?width=' + width);
     await waitFor('document.querySelectorAll("#project-grid .project-card").length === 2');
+    assert.equal(await evaluate('document.querySelectorAll(".project-stack").length'), 1);
+    assert.equal(await evaluate('document.querySelector(".project-stack").open'), false);
+    await evaluate('document.querySelector(".project-stack summary").click()');
+    assert.equal(await evaluate('document.querySelector(".project-stack[open] p").textContent'), 'PHP, JavaScript, MySQL');
+    await evaluate('document.querySelector(".project-stack summary").click()');
+    assert.equal(await evaluate('document.querySelector(".project-stack").open'), false);
     assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true, 'No horizontal overflow');
     const layout = () => {
       const about = document.querySelector('.about-layout').getBoundingClientRect();

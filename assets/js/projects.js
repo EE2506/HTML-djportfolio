@@ -102,6 +102,11 @@ window.loadPortfolioProjects = (request, api) => {
       for (const tag of project.tags) tags.append(element('li', '', tag));
       copy.append(tags);
     }
+    if (typeof project.techStack === 'string' && project.techStack.trim()) {
+      const stack = element('details', 'project-stack');
+      stack.append(element('summary', '', 'Tech Stack Used'), element('p', '', project.techStack));
+      copy.append(stack);
+    }
     for (const [url, label, group] of [
       [project.repoUrl, 'View on GitHub ↗', secondary],
       [project.liveUrl, 'View live demo ↗', links],

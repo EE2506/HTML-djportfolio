@@ -257,6 +257,9 @@ try {
                     <label>Title <input name="title" maxlength="160" value="<?= e($selected['title'] ?? '') ?>"
                         placeholder="<?= e($selectedRepo['name'] ?? '') ?>" <?= !$selectedRepo && empty($selected['github_id']) ? 'required' : '' ?>></label>
                     <label>Description <textarea name="description" maxlength="5000" rows="4"><?= e($selected['description'] ?? '') ?></textarea></label>
+                    <label>Tech Stack Used <input name="tech_stack" maxlength="300" value="<?= e($selected['tech_stack'] ?? '') ?>"
+                        placeholder="<?= e($selectedRepo['language'] ?? 'e.g. PHP, JavaScript, MySQL') ?>">
+                        <small>Optional. Leave blank to use the primary language for a linked GitHub repo.</small></label>
                     <label>Category <select name="category_id" required>
                         <?php foreach ($categories as $category): ?>
                             <option value="<?= e($category['id']) ?>" <?= (int) ($selected['category_id'] ?? 2) === (int) $category['id'] ? 'selected' : '' ?>>

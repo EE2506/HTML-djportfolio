@@ -13,7 +13,7 @@ function check(bool $condition, string $message): void
 }
 
 $repos = [
-    ['id' => '101', 'name' => 'renamed-repo', 'description' => 'GitHub description', 'updated' => '2026-10-01'],
+    ['id' => '101', 'name' => 'renamed-repo', 'description' => 'GitHub description', 'language' => 'PHP', 'updated' => '2026-10-01'],
     ['id' => '102', 'name' => 'hidden-repo', 'description' => '', 'updated' => '2026-10-02'],
     ['id' => '103', 'name' => 'another-repo', 'description' => '', 'updated' => '2026-10-03'],
 ];
@@ -37,6 +37,10 @@ check($catalog['items'][0]['title'] === 'Custom title'
     && $catalog['items'][0]['tags'] === ['PHP']
     && $catalog['items'][0]['imageAlt'] === 'Custom title', 'Overrides survive a repository rename');
 check(mergeCatalog([], [], [], [], []) === ['items' => [], 'categories' => []], 'Empty catalog');
+check(array_column($catalog['items'], 'techStack') === ['PHP', null, null], 'Primary language fallback');
+$rows[0]['tech_stack'] = 'PHP, JavaScript, MySQL';
+check(mergeCatalog($repos, $rows, $categories, [], [])['items'][0]['techStack'] === 'PHP, JavaScript, MySQL',
+    'Manual tech stack takes precedence over the GitHub language');
 check(array_column(mergeCatalog([], $rows, $categories, [], [])['items'], 'id') === ['custom-3'],
     'Custom entries survive a cold GitHub outage');
 

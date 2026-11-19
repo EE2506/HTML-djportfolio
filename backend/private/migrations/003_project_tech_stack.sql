@@ -1,0 +1,1 @@
+ALTER TABLE projects ADD COLUMN tech_stack VARCHAR(300) NULL;

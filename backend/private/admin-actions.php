@@ -129,6 +129,8 @@ function saveProject(PDO $db, array $repos, string $media, array &$uploaded): ar
     $repoId = $existing ? $existing['github_id'] : ($repoId ?: null);
     $title = input('title', 160, $repoId === null);
     $description = input('description', 5000);
+    $techStack = array_key_exists('tech_stack', $_POST)
+        ? input('tech_stack', 300) : ($existing['tech_stack'] ?? '');
     $alt = input('image_alt', 180);
     $url = input('live_url', 2048);
     if ($url !== '' && (!filter_var($url, FILTER_VALIDATE_URL) || !preg_match('~\Ahttps?://~i', $url))) {
@@ -154,13 +156,14 @@ function saveProject(PDO $db, array $repos, string $media, array &$uploaded): ar
     $image = $images[0] ?? null;
     $values = [$title === '' ? null : $title, $description === '' ? null : $description, $category,
         $image, $alt === '' ? null : $alt, $url === '' ? null : $url,
-        (int) isset($_POST['hidden']), (int) isset($_POST['pinned']), $order];
+        (int) isset($_POST['hidden']), (int) isset($_POST['pinned']), $order,
+        $techStack === '' ? null : $techStack];
     if ($id) {
         sql($db, 'UPDATE projects SET title=?, description=?, category_id=?, image=?, image_alt=?,
-            live_url=?, hidden=?, pinned=?, sort_order=? WHERE id=?', [...$values, $id]);
+            live_url=?, hidden=?, pinned=?, sort_order=?, tech_stack=? WHERE id=?', [...$values, $id]);
     } else {
         sql($db, 'INSERT INTO projects (title, description, category_id, image, image_alt,
-            live_url, hidden, pinned, sort_order, github_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            live_url, hidden, pinned, sort_order, tech_stack, github_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [...$values, $repoId]);
         $id = (int) $db->lastInsertId();
     }

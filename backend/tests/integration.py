@@ -93,7 +93,9 @@ def main():
     assert "Changes saved." in admin("tag-save", id=0, name="PHP")[1]
     assert "Changes saved." in admin("project-save", id=0, github_id=101, title="GitHub override",
                                      category_id=4, sort_order=10, pinned=1, **{"tags[]": [1]})[1]
-    assert "Changes saved." in admin("project-save", id=0, title="Case study", category_id=1, sort_order=-1)[1]
+    assert "Changes saved." in admin("project-save", id=0, title="Case study", category_id=1, sort_order=-1,
+                                     tech_stack="PHP, JavaScript, MySQL")[1]
+    assert item("custom-2")["techStack"] == "PHP, JavaScript, MySQL"
     assert [row["id"] for row in catalog()["items"]] == ["github-101", "custom-2", "github-102"]
     assert item("github-101")["tags"] == ["PHP"]
     assert catalog("client-work")["items"][0]["title"] == "GitHub override"
@@ -126,8 +128,10 @@ def main():
     assert "Changes saved." in admin("project-save", id=2, title="Case study", category_id=1,
                                      sort_order=-1, cover_image=sample)[1]
     assert item("custom-2")["image"] == sample and item("custom-2")["samples"] == [image]
+    assert item("custom-2")["techStack"] == "PHP, JavaScript, MySQL"
     assert "Changes saved." in admin("project-save", id=2, title="Case study", category_id=1,
-                                     sort_order=-1, **{"remove_images[]": [image]})[1]
+                                     sort_order=-1, tech_stack="", **{"remove_images[]": [image]})[1]
+    assert item("custom-2")["techStack"] is None
     assert item("custom-2")["samples"] == [] and not (media / image).exists()
     assert "Changes saved." in admin("project-delete", id=2)[1]
     assert not (media / sample).exists(), "Removed project image should be deleted"

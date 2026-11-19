@@ -132,6 +132,9 @@ svg { display:block; }
 .project-copy h3 { overflow-wrap: anywhere; }
 .project-bottom, .project-secondary { align-items: center; flex-wrap: wrap; }
 .project-bottom { margin-top: auto; padding-top: 1.25rem; }
+.project-stack { margin-top: .75rem; font-size: .85rem; color: var(--ink-soft); }
+.project-stack summary { cursor: pointer; color: var(--ink); font-weight: 700; }
+.project-stack p { margin: .25rem 0 0; overflow-wrap: anywhere; }
 .project-secondary { display: flex; gap: .75rem; }
 .project-demo { margin-inline-start: auto; }
 .sample-trigger { padding: 0; border: 0; background: none; cursor: pointer; }
